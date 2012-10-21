@@ -1,0 +1,474 @@
+/* -*- c-basic-offset: 4 indent-tabs-mode: nil -*-  vi:set ts=8 sts=4 sw=4: */
+
+/*
+    MiniBPM
+    A fixed-tempo BPM estimator for music audio
+    Copyright 2012 Particular Programs Ltd.
+
+    This program is free software; you can redistribute it and/or
+    modify it under the terms of the GNU General Public License as
+    published by the Free Software Foundation; either version 2 of the
+    License, or (at your option) any later version.  See the file
+    COPYING included with this distribution for more information.
+
+    Alternatively, if you have a valid commercial licence for MiniBPM
+    obtained by agreement with the copyright holders, you may
+    redistribute and/or modify it under the terms described in that
+    licence.
+
+    If you wish to distribute code using MiniBPM under terms other
+    than those of the GNU General Public License, you must obtain a
+    valid commercial licence before doing so.
+*/
+
+#include "MiniBpm.h"
+
+#include <vector>
+#include <cmath>
+
+#ifdef __MSVC__
+#define R__ __restrict
+#else
+#ifdef __GNUC__
+#define R__ __restrict__
+#else
+#define R__
+#endif
+#endif
+
+using std::vector;
+
+#include <iostream>
+
+namespace breakfastquay {
+
+class Autocorrelation
+{
+public:
+    Autocorrelation(int n, int m) : m_n(n), m_m(m) { }
+
+    template <typename T>
+    void acf(const T *R__ in, T *R__ out) const {
+	for (int i = 0; i < m_m; ++i) {
+	    out[i] = 0.0;
+	    for (int j = i; j < m_n; ++j) {
+		out[i] += in[j] * in[j - i];
+	    }
+	}
+    }
+
+    template <typename T>
+    void acfUnityNormalised(const T *R__ in, T *R__ out) const {
+
+	acf(in, out);
+
+        double max = 0.0;
+	for (int i = 0; i < m_m; ++i) {
+	    out[i] /= m_n - i;
+            if (out[i] > max) max = out[i];
+	}
+        if (max > 0.0) {
+            for (int i = 0; i < m_m; ++i) {
+                out[i] /= max;
+            }
+        }
+    }
+
+    static int bpmToLag(double bpm, double hopsPerSec) {
+	return int((60.0 / bpm) * hopsPerSec);
+    }
+    static double lagToBpm(int lag, double hopsPerSec) {
+	return (60.0 * hopsPerSec) / lag;
+    }
+
+private:
+    int m_n;
+    int m_m;
+};
+
+class FourierFilterbank
+{
+public:
+    FourierFilterbank(int n, double fs, double minFreq, double maxFreq,
+		      bool windowed) :
+	m_n(n), m_fs(fs), m_fmin(minFreq), m_fmax(maxFreq),
+	m_windowed(windowed)
+    {
+	m_binmin = int(floor(n * m_fmin) / fs);
+	m_binmax = int(ceil(n * m_fmax) / fs);
+	m_bins = m_binmax - m_binmin + 1;
+	initFilters();
+    }
+
+    ~FourierFilterbank() {
+        for (int i = 0; i < m_bins; ++i) {
+            delete[] m_sin[i];
+            delete[] m_cos[i];
+        }
+        delete[] m_sin;
+        delete[] m_cos;
+    }
+
+    int getOutputSize() const {
+	return m_bins;
+    }
+
+    void forwardMagnitude(const double *R__ realIn, double *R__ magOut) const {
+	for (int i = 0; i < m_bins; ++i) {
+	    const double *R__ sin = m_sin[i];
+	    const double *R__ cos = m_cos[i];
+	    double real = 0.0, imag = 0.0;
+	    for (int j = 0; j < m_n; ++j) real += realIn[j] * cos[j];
+	    for (int j = 0; j < m_n; ++j) imag += realIn[j] * sin[j];
+	    magOut[i] = sqrt(real*real + imag*imag);
+	}
+    }
+
+private:
+    int m_n;
+    double m_fs;
+    double m_fmin;
+    double m_fmax;
+    bool m_windowed;
+    int m_binmin;
+    int m_binmax;
+    int m_bins;
+    
+    double **m_sin;
+    double **m_cos;
+
+    void initFilters() {
+        m_sin = new double*[m_bins];
+        m_cos = new double*[m_bins];
+	double twopi = M_PI * 2.0;
+        double win = 1.0;
+	for (int i = 0; i < m_bins; ++i) {
+            m_sin[i] = new double[m_n];
+            m_cos[i] = new double[m_n];
+	    int bin = i + m_binmin;
+	    double delta = (twopi * bin) / m_n;
+	    for (int j = 0; j < m_n; ++j) {
+		double angle = j * delta;
+                if (m_windowed) win = 0.5 - 0.5 * cos(twopi * j / m_n);
+		m_sin[i][j] = sin(angle) * win;
+		m_cos[i][j] = cos(angle) * win;
+	    }
+	}
+    }
+};
+
+class MiniBPM::D
+{
+public:
+    double m_minbpm;
+    double m_maxbpm;
+    int m_beatsPerBar;
+
+    D(float sampleRate) :
+	m_minbpm(55),
+	m_maxbpm(190),
+	m_beatsPerBar(4),
+	m_inputSampleRate(sampleRate),
+	m_lfmin(0),
+	m_lfmax(550),
+	m_hfmin(9000),
+	m_hfmax(9001),
+	m_input(0),
+	m_partial(0),
+	m_partialFill(0),
+	m_frame(0),
+	m_lfprev(0),
+	m_hfprev(0)
+    {
+	int lfbinmax = 6;
+	m_blockSize = (m_inputSampleRate * lfbinmax) / m_lfmax;
+	m_stepSize = m_blockSize / 2;
+
+	m_lf = new FourierFilterbank(m_blockSize, m_inputSampleRate, 
+				     m_lfmin, m_lfmax, true);
+
+	m_hf = new FourierFilterbank(m_blockSize, m_inputSampleRate, 
+				     m_hfmin, m_hfmax, true);
+
+	int lfsize = m_lf->getOutputSize();
+	int hfsize = m_hf->getOutputSize();
+
+	m_lfprev = new double[lfsize];
+	for (int i = 0; i < lfsize; ++i) m_lfprev[i] = 0.0;
+
+	m_hfprev = new double[hfsize];
+	for (int i = 0; i < hfsize; ++i) m_hfprev[i] = 0.0;
+
+	m_input = new double[m_blockSize];
+	m_partial = new double[m_stepSize];
+	m_frame = new double[std::max(lfsize, hfsize)];
+    }
+	
+    ~D()
+    {
+	delete m_lf;
+	delete m_hf;
+	delete[] m_lfprev;
+	delete[] m_hfprev;
+	delete[] m_input;
+	delete[] m_partial;
+	delete[] m_frame;
+    }
+
+    double
+    specdiff(const double *a, const double *b, int n)
+    {
+	double tot = 0.0;
+	for (int i = 0; i < n; ++i) {
+	    tot += sqrt(fabs(a[i]*a[i] - b[i]*b[i]));
+	}
+	return tot;
+    }
+
+    template <typename S, typename T>
+    void copy(T *R__ t, const S *R__ s, const int n) {
+	for (int i = 0; i < n; ++i) t[i] = s[i];
+    }
+    template <typename T>
+    void zero(T *R__ t, const int n) {
+	for (int i = 0; i < n; ++i) t[i] = T(0);
+    }
+    
+    double estimateTempoOfSamples(const float *samples, int nsamples)
+    {
+	int i = 0;
+	while (i + m_blockSize < nsamples) {
+	    copy(m_input, samples + i, m_blockSize);
+	    processInputBlock();
+	    i += m_stepSize;
+	}
+	return finish();
+    }
+
+    void process(const float *samples, int nsamples)
+    {
+	int n = 0;
+	while (n < nsamples) {
+	    int hole = m_blockSize - m_stepSize;
+	    int remaining = nsamples - n;
+	    if (m_partialFill + remaining < m_stepSize) {
+		copy(m_partial + m_partialFill, samples + n, remaining);
+		m_partialFill += remaining;
+		break;
+	    }
+	    copy(m_input + hole, m_partial, m_partialFill);
+	    int toConsume = m_stepSize - m_partialFill;
+	    copy(m_input + hole + m_partialFill, samples + n, toConsume);
+	    n += toConsume;
+	    m_partialFill = 0;
+	    processInputBlock();
+	    copy(m_input, m_input + m_stepSize, hole);
+	}
+    }
+
+    double estimateTempo()
+    {
+	if (m_partialFill > 0) {
+	    int hole = m_blockSize - m_stepSize;
+	    copy(m_input + hole, m_partial, m_partialFill);
+	    zero(m_input + hole + m_partialFill, m_stepSize - m_partialFill);
+	    m_partialFill = 0;
+	    processInputBlock();
+	}
+	return finish();
+    }
+
+    void reset()
+    {
+	m_lfdf.clear();
+	m_hfdf.clear();
+	m_rms.clear();
+	m_partialFill = 0;
+    }
+
+    void processInputBlock()
+    {
+	double rms = 0.0;
+
+	for (int i = 0; i < m_blockSize; ++i) {
+	    rms += m_input[i] * m_input[i];
+	}
+
+	rms = sqrt(rms / m_blockSize);
+	m_rms.push_back(rms);
+
+	int lfsize = m_lf->getOutputSize();
+	int hfsize = m_hf->getOutputSize();
+
+	m_lf->forwardMagnitude(m_input, m_frame);
+	m_lfdf.push_back(specdiff(m_frame, m_lfprev, lfsize));
+	copy(m_lfprev, m_frame, lfsize);
+	
+	m_hf->forwardMagnitude(m_input, m_frame);
+	m_hfdf.push_back(specdiff(m_frame, m_hfprev, hfsize));
+	copy(m_hfprev, m_frame, hfsize);
+    }
+
+    double finish()
+    {
+	double hopsPerSec = m_inputSampleRate / m_stepSize;
+	int dfLength = m_lfdf.size();
+
+	// We have no use for any lag beyond one bar at minimum bpm
+	double barPM = m_minbpm / m_beatsPerBar;
+	int acfLength = Autocorrelation::bpmToLag(barPM, hopsPerSec);
+	if (acfLength > dfLength) acfLength = dfLength;
+
+	Autocorrelation acfcalc(dfLength, acfLength);
+
+	double *acf = new double[acfLength];
+	double *temp = new double[acfLength];
+
+	zero(acf, acfLength);
+
+	acfcalc.acfUnityNormalised(m_lfdf.data(), temp);
+	for (int i = 0; i < acfLength; ++i) acf[i] += temp[i];
+
+	acfcalc.acfUnityNormalised(m_hfdf.data(), temp);
+	for (int i = 0; i < acfLength; ++i) acf[i] += temp[i] * 0.5;
+
+	acfcalc.acfUnityNormalised(m_rms.data(), temp);
+	for (int i = 0; i < acfLength; ++i) acf[i] += temp[i] * 0.1;
+
+	int minlag = Autocorrelation::bpmToLag(m_maxbpm, hopsPerSec);
+	int maxlag = Autocorrelation::bpmToLag(m_minbpm, hopsPerSec);
+	int subsetlen = maxlag - minlag + 1;
+
+	if (acfLength < maxlag) {
+	    // Not enough data
+	    return 0.0;
+	}
+
+	double *cf = new double[subsetlen]; // comb filtered
+    
+	for (int i = 0; i < subsetlen; ++i) {
+	    int idx = minlag + i;
+	    double value = acf[idx] * 0.8;
+	    if (idx * m_beatsPerBar < acfLength) {
+		value += acf[idx * m_beatsPerBar] * 1.0;
+	    }
+	    cf[i] = value;
+	}
+
+	for (int i = 0; i < subsetlen; ++i) {
+	    // perceptual weighting: prefer middling values
+	    double bpm = Autocorrelation::lagToBpm(minlag + i, hopsPerSec);
+	    double weight = 1.0 - pow(fabs(130.0 - bpm) / 150.0, 2.4);
+	    if (weight < 0.0) weight = 0.0;
+	    cf[i] *= weight;
+	}
+
+	double peakcf = 0.0;
+	int peakidx = 0;
+
+	for (int i = 0; i < subsetlen; ++i) {
+	    if (i == 0 || cf[i] > peakcf) {
+		peakcf = cf[i];
+		peakidx = i;
+	    }
+	}
+
+	int peaklag = peakidx + minlag;
+	double bpm = Autocorrelation::lagToBpm(peaklag, hopsPerSec);
+
+	delete[] cf;
+	delete[] acf;
+	delete[] temp;
+
+	return bpm;
+    }
+	
+
+private:
+    float m_inputSampleRate;
+    int m_blockSize;
+    int m_stepSize;
+    int m_lfmin;
+    int m_lfmax;
+    int m_hfmin;
+    int m_hfmax;
+
+    std::vector<double> m_lfdf;
+    std::vector<double> m_hfdf;
+    std::vector<double> m_rms;
+
+    FourierFilterbank *m_lf;
+    FourierFilterbank *m_hf;
+    
+    double *m_input;
+    double *m_partial;
+    int m_partialFill;
+
+    double *m_frame;
+    double *m_lfprev;
+    double *m_hfprev;
+};
+
+MiniBPM::MiniBPM(float sampleRate) :
+    m_d(new D(sampleRate))
+{
+}
+
+MiniBPM::~MiniBPM()
+{
+    delete m_d;
+}
+
+void
+MiniBPM::setBPMRange(double min, double max)
+{
+    m_d->m_minbpm = min;
+    m_d->m_maxbpm = max;
+}
+
+void
+MiniBPM::getBPMRange(double &min, double &max) const
+{
+    min = m_d->m_minbpm;
+    max = m_d->m_maxbpm;
+}
+
+void
+MiniBPM::setBeatsPerBar(int bpb)
+{
+    m_d->m_beatsPerBar = bpb;
+}
+
+int
+MiniBPM::getBeatsPerBar() const
+{
+    return m_d->m_beatsPerBar;
+}
+
+double
+MiniBPM::estimateTempoOfSamples(const float *samples, int nsamples)
+{
+    return m_d->estimateTempoOfSamples(samples, nsamples);
+}
+
+void
+MiniBPM::process(const float *samples, int nsamples)
+{
+    m_d->process(samples, nsamples);
+}
+
+double
+MiniBPM::estimateTempo()
+{
+    return m_d->estimateTempo();
+}
+
+void
+MiniBPM::reset()
+{
+    m_d->reset();
+}
+
+}
+
+
