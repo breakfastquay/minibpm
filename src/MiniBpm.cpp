@@ -233,7 +233,54 @@ public:
     void zero(T *R__ t, const int n) {
 	for (int i = 0; i < n; ++i) t[i] = T(0);
     }
+    template <typename T>
+    void unityNormalise(T *R__ t, const int n) {
+        double max = 0.0, min = 0.0;
+        for (int i = 0; i < n; ++i) {
+            if (i == 0 || t[i] > max) max = t[i];
+            if (i == 0 || t[i] < min) min = t[i];
+        }
+        if (max > min) {
+            for (int i = 0; i < n; ++i) {
+                t[i] = (t[i] - min) / (max - min);
+            }
+        }
+    }
+
+    double interpolateBPM(int lag, const double *acf, int acfLength,
+                          double hopsPerSec)
+    {
+        int multiple = 1;
+        double interpolated = lag;
+
+        double total = 0.0;
+        int count = 0;
+
+        while (lag * multiple + multiple/2 + 1 < acfLength) {
+
+            int base = lag * multiple - multiple/2 - 1;
+            int n = multiple + 2;
+
+            double peak = 0.0;
+            int peakidx = 0;
+            for (int i = base; i < base+n; ++i) {
+                if (acf[i] > peak) {
+                    peak = acf[i];
+                    peakidx = i;
+                }
+            }
+            double scaled = double(peakidx) / multiple;
+            total += scaled;
+            
+            multiple = multiple * 2;
+            ++count;
+        }
+        
+        interpolated = total / count;
     
+        return (60.0 * hopsPerSec) / interpolated;
+    }
+
     double estimateTempoOfSamples(const float *samples, int nsamples)
     {
 	int i = 0;
@@ -314,10 +361,10 @@ public:
 	double hopsPerSec = m_inputSampleRate / m_stepSize;
 	int dfLength = m_lfdf.size();
 
-	// We have no use for any lag beyond one bar at minimum bpm
-	double barPM = m_minbpm / m_beatsPerBar;
+	// We have no use for any lag beyond 4 bars at minimum bpm
+	double barPM = m_minbpm / (4 * m_beatsPerBar);
 	int acfLength = Autocorrelation::bpmToLag(barPM, hopsPerSec);
-	if (acfLength > dfLength) acfLength = dfLength;
+        while (acfLength > dfLength) acfLength /= 2;
 
 	Autocorrelation acfcalc(dfLength, acfLength);
 
@@ -345,20 +392,48 @@ public:
 	}
 
 	double *cf = new double[subsetlen]; // comb filtered
-    
-	for (int i = 0; i < subsetlen; ++i) {
-	    int idx = minlag + i;
-	    double value = acf[idx] * 0.8;
-	    if (idx * m_beatsPerBar < acfLength) {
-		value += acf[idx * m_beatsPerBar] * 1.0;
-	    }
-	    cf[i] = value;
-	}
+        zero(cf, subsetlen);
+
+//	std::cerr << "dfLength " << dfLength << ", acfLength " << acfLength
+//		  << ", maxlag " << maxlag << ", minlag " << minlag << std::endl;
+
+        for (int i = 0; i < subsetlen; ++i) {
+
+            int lag = minlag + i;
+            int multiple = 1;
+            int n = 0;
+
+            while (lag * multiple + multiple/2 < acfLength) {
+
+                int minsrc = (lag * multiple) - (multiple/2);
+                int maxsrc = minsrc + multiple - 1;
+
+                double peak = 0.0;
+                for (int j = minsrc; j <= maxsrc; ++j) {
+                    if (acf[j] > peak) peak = acf[j];
+                }
+                cf[i] += peak;
+                ++n;
+
+                if (multiple == 1) multiple = m_beatsPerBar;
+                else multiple = multiple * 2;
+            }
+
+            cf[i] /= n;
+        }
+
+        unityNormalise(cf, subsetlen);
 
 	for (int i = 0; i < subsetlen; ++i) {
 	    // perceptual weighting: prefer middling values
 	    double bpm = Autocorrelation::lagToBpm(minlag + i, hopsPerSec);
-	    double weight = 1.0 - pow(fabs(130.0 - bpm) / 150.0, 2.4);
+            double weight;
+            double centre = 130.0;
+            if (bpm < centre) {
+                weight = 1.0 - pow(fabs(centre - bpm) / 100.0, 2.4);
+            } else {
+                weight = 1.0 - pow(fabs(centre - bpm) / 80.0, 2.4);
+            }                
 	    if (weight < 0.0) weight = 0.0;
 	    cf[i] *= weight;
 	}
@@ -374,7 +449,7 @@ public:
 	}
 
 	int peaklag = peakidx + minlag;
-	double bpm = Autocorrelation::lagToBpm(peaklag, hopsPerSec);
+        double bpm = interpolateBPM(peaklag, acf, acfLength, hopsPerSec);
 
 	delete[] cf;
 	delete[] acf;
