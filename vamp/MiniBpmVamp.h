@@ -30,11 +30,8 @@
 
 namespace breakfastquay
 {
-class MiniBPM;
-}
 
-namespace Turbot
-{
+class MiniBPM;
 
 class MiniBpmVamp : public Vamp::Plugin
 {

@@ -23,13 +23,11 @@
 
 #include "MiniBpmVamp.h"
 
-#include "dsp/MiniBpm.h"
+#include "MiniBpm.h"
 
 using std::string;
 
-using breakfastquay::MiniBPM;
-
-namespace Turbot {
+namespace breakfastquay {
 
 MiniBpmVamp::MiniBpmVamp(float inputSampleRate) :
     Plugin(inputSampleRate),
@@ -46,13 +44,13 @@ MiniBpmVamp::~MiniBpmVamp()
 string
 MiniBpmVamp::getIdentifier() const
 {
-    return "turbot-minibpm";
+    return "minibpm";
 }
 
 string
 MiniBpmVamp::getName() const
 {
-    return "Turbot MiniBPM Detector";
+    return "MiniBPM Detector";
 }
 
 string
