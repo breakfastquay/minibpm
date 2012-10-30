@@ -24,6 +24,8 @@
 #include "MiniBpm.h"
 
 #include <vector>
+#include <map>
+#include <utility>
 #include <cmath>
 
 #ifdef __MSVC__
@@ -282,7 +284,9 @@ public:
             ++count;
         }
 
-        interpolated = total / count;
+        if (count > 0) {
+            interpolated = total / count;
+        }
     
         return (60.0 * hopsPerSec) / interpolated;
     }
@@ -331,6 +335,11 @@ public:
 	return finish();
     }
 
+    std::vector<double> getTempoCandidates() const
+    {
+        return m_candidates;
+    }
+
     void reset()
     {
 	m_lfdf.clear();
@@ -364,6 +373,8 @@ public:
 
     double finish()
     {
+        m_candidates.clear();
+
 	double hopsPerSec = m_inputSampleRate / m_stepSize;
 	int dfLength = m_lfdf.size();
 
@@ -444,24 +455,31 @@ public:
 	    cf[i] *= weight;
 	}
 
-	double peakcf = 0.0;
-	int peakidx = 0;
-
+        std::multimap<double, int> candidateMap;
 	for (int i = 0; i < subsetlen; ++i) {
-	    if (i == 0 || cf[i] > peakcf) {
-		peakcf = cf[i];
-		peakidx = i;
-	    }
+            if ((i == 0 || cf[i] > cf[i-1]) &&
+                (i+1 == subsetlen || cf[i] > cf[i+1])) {
+                candidateMap.insert(std::pair<double, int>(cf[i], i));
+            }
 	}
 
-	int peaklag = peakidx + minlag;
-        double bpm = interpolateBPM(peaklag, acf, acfLength, hopsPerSec);
+        if (candidateMap.empty()) {
+            return 0.0;
+        }
+
+        std::multimap<double, int>::const_iterator ci(candidateMap.end());
+        while (ci != candidateMap.begin()) {
+            --ci;
+            int lag = ci->second + minlag;
+            double bpm = interpolateBPM(lag, acf, acfLength, hopsPerSec);
+            m_candidates.push_back(bpm);
+        }
 
 	delete[] cf;
 	delete[] acf;
 	delete[] temp;
 
-	return bpm;
+	return m_candidates[0];
     }
 	
 
@@ -477,6 +495,8 @@ private:
     std::vector<double> m_lfdf;
     std::vector<double> m_hfdf;
     std::vector<double> m_rms;
+
+    std::vector<double> m_candidates;
 
     FourierFilterbank *m_lf;
     FourierFilterbank *m_hf;
@@ -542,6 +562,12 @@ double
 MiniBPM::estimateTempo()
 {
     return m_d->estimateTempo();
+}
+
+std::vector<double>
+MiniBPM::getTempoCandidates() const
+{
+    return m_d->getTempoCandidates();
 }
 
 void

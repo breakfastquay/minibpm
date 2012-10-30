@@ -24,6 +24,8 @@
 #ifndef _BQ_MINI_BPM_H_
 #define _BQ_MINI_BPM_H_
 
+#include <vector>
+
 namespace breakfastquay {
 
 /**
@@ -126,6 +128,14 @@ public:
      * the clip is too short, return 0.
      */
     double estimateTempo();
+
+    /**
+     * Return all candidate tempi for the last tempo estimation that
+     * was carried out, in order of likelihood (best first). The value
+     * returned from estimateTempo or estimateTempoOfSamples will
+     * therefore be the first in the returned sequence.
+     */
+    std::vector<double> getTempoCandidates() const;
 
     /**
      * Prepare the object to carry out another tempo estimation on a
