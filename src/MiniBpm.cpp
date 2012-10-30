@@ -164,6 +164,28 @@ public:
     double m_maxbpm;
     int m_beatsPerBar;
 
+    template <typename S, typename T>
+    void copy(T *R__ t, const S *R__ s, const int n) {
+	for (int i = 0; i < n; ++i) t[i] = s[i];
+    }
+    template <typename T>
+    void zero(T *R__ t, const int n) {
+	for (int i = 0; i < n; ++i) t[i] = T(0);
+    }
+    template <typename T>
+    void unityNormalise(T *R__ t, const int n) {
+        double max = 0.0, min = 0.0;
+        for (int i = 0; i < n; ++i) {
+            if (i == 0 || t[i] > max) max = t[i];
+            if (i == 0 || t[i] < min) min = t[i];
+        }
+        if (max > min) {
+            for (int i = 0; i < n; ++i) {
+                t[i] = (t[i] - min) / (max - min);
+            }
+        }
+    }
+
     D(float sampleRate) :
 	m_minbpm(55),
 	m_maxbpm(190),
@@ -201,7 +223,13 @@ public:
 
 	m_input = new double[m_blockSize];
 	m_partial = new double[m_stepSize];
-	m_frame = new double[std::max(lfsize, hfsize)];
+
+        int frameSize = std::max(lfsize, hfsize);
+	m_frame = new double[frameSize];
+
+        zero(m_input, m_blockSize);
+        zero(m_partial, m_stepSize);
+        zero(m_frame, frameSize);
     }
 	
     ~D()
@@ -223,28 +251,6 @@ public:
 	    tot += sqrt(fabs(a[i]*a[i] - b[i]*b[i]));
 	}
 	return tot;
-    }
-
-    template <typename S, typename T>
-    void copy(T *R__ t, const S *R__ s, const int n) {
-	for (int i = 0; i < n; ++i) t[i] = s[i];
-    }
-    template <typename T>
-    void zero(T *R__ t, const int n) {
-	for (int i = 0; i < n; ++i) t[i] = T(0);
-    }
-    template <typename T>
-    void unityNormalise(T *R__ t, const int n) {
-        double max = 0.0, min = 0.0;
-        for (int i = 0; i < n; ++i) {
-            if (i == 0 || t[i] > max) max = t[i];
-            if (i == 0 || t[i] < min) min = t[i];
-        }
-        if (max > min) {
-            for (int i = 0; i < n; ++i) {
-                t[i] = (t[i] - min) / (max - min);
-            }
-        }
     }
 
     double interpolateBPM(int lag, const double *acf, int acfLength,
@@ -275,7 +281,7 @@ public:
             multiple = multiple * 2;
             ++count;
         }
-        
+
         interpolated = total / count;
     
         return (60.0 * hopsPerSec) / interpolated;
