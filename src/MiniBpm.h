@@ -69,12 +69,8 @@ namespace breakfastquay {
  *
  * - Drag a comb filter across the subset of the summed
  *   autocorrelation sequence that corresponds to the plausible tempo
- *   range. Allocate to each autocorrelation lag a weighted sum of its
- *   value and the value of the element at the beats-per-bar multiple
- *   of its lag (because a lag is most likely to correspond to a beat
- *   if there is a good correlation for the bar length that the beat
- *   would imply -- in fact this is a better indicator than the
- *   correlation of the beat itself).
+ *   range. Allocate to each lag a weighted sum of its value and those
+ *   of elements around beats-per-bar multiples of its lag.
  *
  * - Apply a simplistic perceptual weighting filter to prefer tempi
  *   around 120-130bpm.
