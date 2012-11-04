@@ -25,7 +25,7 @@
 
 using breakfastquay::FourierFilterbank;
 using breakfastquay::Autocorrelation;
-using breakfastquay::BPMRefiner;
+using breakfastquay::ACFCombFilter;
 using breakfastquay::MiniBPM;
 
 #define BOOST_TEST_DYN_LINK
@@ -200,40 +200,110 @@ BOOST_AUTO_TEST_CASE(bpmLagConversion)
 
 BOOST_AUTO_TEST_SUITE_END()
 
-BOOST_AUTO_TEST_SUITE(TestBpmRefiner)
+BOOST_AUTO_TEST_SUITE(TestACFCombFilter)
+
+BOOST_AUTO_TEST_CASE(contributingRange)
+{
+    int base, count;
+    ACFCombFilter::getContributingRange(1, 1, base, count);
+    BOOST_CHECK_EQUAL(base, 1);
+    BOOST_CHECK_EQUAL(count, 1);
+    ACFCombFilter::getContributingRange(1, 2, base, count);
+    BOOST_CHECK_EQUAL(base, 2);
+    BOOST_CHECK_EQUAL(count, 1);
+    ACFCombFilter::getContributingRange(1, 4, base, count);
+    BOOST_CHECK_EQUAL(base, 3);
+    BOOST_CHECK_EQUAL(count, 3);
+    ACFCombFilter::getContributingRange(1, 8, base, count);
+    BOOST_CHECK_EQUAL(base, 6);
+    BOOST_CHECK_EQUAL(count, 6);
+}
+
+BOOST_AUTO_TEST_CASE(contributingRangeCoverage)
+{
+    const int n = 64;
+    const int maxMultiple = 16;
+    int *target = new int[n];
+
+    // Need to ensure that each lag contributes to no more than one
+    // target lag, at each multiple
+    for (int multiple = 1; multiple <= maxMultiple; multiple = multiple * 2) {
+	for (int i = 1; i < n; ++i) {
+	    target[i] = -1;
+	}
+	for (int i = 1; i < n; ++i) {
+	    int base, count;
+	    ACFCombFilter::getContributingRange(i, multiple, base, count);
+	    for (int j = base; j < base + count; ++j) {
+		BOOST_CHECK_GE(j, i);
+		if (j >= 0 && j < n) {
+		    if (target[j] != -1) {
+			BOOST_CHECK_EQUAL(target[j], i);
+		    }
+		    target[j] = i;
+		}
+	    }
+	}
+    }
+
+    // and that each lag is a source for only one multiple, for a
+    // given target
+    for (int i = 1; i < n; ++i) {
+	for (int j = 1; j < n; ++j) {
+	    target[j] = -1;
+	}
+	for (int multiple = 1; multiple <= maxMultiple; multiple = multiple * 2) {
+	    int base, count;
+	    ACFCombFilter::getContributingRange(i, multiple, base, count);
+	    for (int j = base; j < base + count; ++j) {
+		BOOST_CHECK_GE(j, i);
+		if (j >= 0 && j < n) {
+		    if (target[j] != -1) {
+			BOOST_CHECK_EQUAL(target[j], multiple);
+		    }
+		    target[j] = multiple;
+		}
+	    }
+	}
+    }		
+
+    delete[] target;
+}
+
+#define REFINER(n) ACFCombFilter(4, 10, 20, n)
 
 BOOST_AUTO_TEST_CASE(refineSingleElement)
 {
     double acf[] = { 0.0, 1.0 };
-    double bpm = BPMRefiner(1).refine(1, acf, 2);
+    double bpm = REFINER(1).refine(1, acf, 2);
     BOOST_CHECK_EQUAL(bpm, 60);
 }
 
 BOOST_AUTO_TEST_CASE(refineEmpty)
 {
     double acf[] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-    double bpm = BPMRefiner(1).refine(1, acf, 8);
+    double bpm = REFINER(1).refine(1, acf, 8);
     BOOST_CHECK_EQUAL(bpm, 60);
 }
     
 BOOST_AUTO_TEST_CASE(refineTrivial)
 {
     double acf[] = { 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
-    double bpm = BPMRefiner(1).refine(1, acf, 8);
+    double bpm = REFINER(1).refine(1, acf, 8);
     BOOST_CHECK_EQUAL(bpm, 60);
 }
     
 BOOST_AUTO_TEST_CASE(refineConsistent)
 {
     double acf[] = { 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0 };
-    double bpm = BPMRefiner(1).refine(1, acf, 8);
+    double bpm = REFINER(1).refine(1, acf, 8);
     BOOST_CHECK_EQUAL(bpm, 60);
 }
 
 BOOST_AUTO_TEST_CASE(refineAdjusting)
 {
     double acf[] = { 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0 };
-    double bpm = BPMRefiner(1).refine(1, acf, 8);
+    double bpm = REFINER(1).refine(1, acf, 8);
     BOOST_CHECK_LT(bpm, 60);
     BOOST_CHECK_GT(bpm, 50);
 }

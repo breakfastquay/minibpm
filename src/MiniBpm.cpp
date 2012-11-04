@@ -159,11 +159,66 @@ private:
     }
 };
 
-class BPMRefiner
+class ACFCombFilter
 {
 public:
-    BPMRefiner(double hopsPerSec) : m_hopsPerSec(hopsPerSec) { }
-    ~BPMRefiner() { }
+    ACFCombFilter(int beatsPerBar, int minlag, int maxlag, double hopsPerSec) :
+        m_beatsPerBar(beatsPerBar),
+        m_min(minlag), m_max(maxlag),
+        m_hopsPerSec(hopsPerSec) { }
+    ~ACFCombFilter() { }
+
+    int getFilteredLength() const {
+        return m_max - m_min + 1;
+    }
+
+    static void getContributingRange(int lag, int multiple,
+                                     int &base, int &count) {
+        if (multiple == 1) {
+            base = lag;
+            count = 1;
+        } else {
+            // 0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 ...
+            // 0  1  2  4  4  4  8  8  8  8  8  8 16 16 16 16 16 16 16 ...
+            base = (lag * multiple) - (multiple / 4);
+            count = (multiple / 4) + (multiple / 2);
+        }
+    }
+
+    void filter(const double *acf, int acfLength, double *filtered) {
+        
+	int flen = getFilteredLength();
+    
+        for (int i = 0; i < flen; ++i) {
+            
+            filtered[i] = 0.0;
+
+            int lag = m_min + i;
+            int multiple = 1;
+            int n = 0;
+
+            while (1) {
+
+                int base, count;
+                getContributingRange(lag, multiple, base, count);
+                if (base + count > acfLength) break;
+
+                double peak = 0.0;
+                for (int j = base; j < base + count; ++j) {
+                    if (j == base || acf[j] > peak) {
+                        peak = acf[j];
+                    }
+                }
+                filtered[i] += peak;
+                ++n;
+
+                if (multiple == 1) multiple = m_beatsPerBar;
+                else multiple = multiple * 2;
+            }
+
+            filtered[i] /= n;
+        }
+    }
 
     double refine(int lag, const double *acf, int acfLength) {
         
@@ -171,32 +226,36 @@ public:
         double interpolated = lag;
 
         double total = 0.0;
-        int count = 0;
+        int n = 0;
 
-        while (lag * multiple + multiple <= acfLength) {
+        while (1) {
+            
+            int base, count;
+            getContributingRange(lag, multiple, base, count);
 
-            int base = lag * multiple;
+            if (base + count > acfLength) break;
 
             double peak = 0.0;
             int peakidx = 0;
-            for (int i = base; i < base + multiple; ++i) {
-                if (i == base || acf[i] > peak) {
-                    peak = acf[i];
-                    peakidx = i;
+            for (int j = base; j < base + count; ++j) {
+                if (acf[j] > peak) {
+                    peak = acf[j];
+                    peakidx = j;
                 }
             }
             
             if (peak > 0.0) {
                 double scaled = double(peakidx) / multiple;
                 total += scaled;
-                ++count;
+                ++n;
             }
             
-            multiple = multiple * 2;
+            if (multiple == 1) multiple = m_beatsPerBar;
+            else multiple = multiple * 2;
         }
 
-        if (count > 0) {
-            interpolated = total / count;
+        if (n > 0) {
+            interpolated = total / n;
         }
     
         double bpm = Autocorrelation::lagToBpm(interpolated, m_hopsPerSec);
@@ -204,6 +263,9 @@ public:
     }
 
 private:
+    int m_beatsPerBar;
+    int m_min;
+    int m_max;
     double m_hopsPerSec;
 };
 
@@ -413,49 +475,19 @@ public:
 
 	int minlag = Autocorrelation::bpmToLag(m_maxbpm, hopsPerSec);
 	int maxlag = Autocorrelation::bpmToLag(m_minbpm, hopsPerSec);
-	int subsetlen = maxlag - minlag + 1;
 
 	if (acfLength < maxlag) {
 	    // Not enough data
 	    return 0.0;
 	}
 
-	double *cf = new double[subsetlen]; // comb filtered
-        zero(cf, subsetlen);
+        ACFCombFilter filter(m_beatsPerBar, minlag, maxlag, hopsPerSec);
+        int cflen = filter.getFilteredLength();
+	double *cf = new double[cflen];
+        filter.filter(acf, acfLength, cf);
+        unityNormalise(cf, cflen);
 
-//	std::cerr << "dfLength " << dfLength << ", acfLength " << acfLength
-//		  << ", maxlag " << maxlag << ", minlag " << minlag << std::endl;
-
-        for (int i = 0; i < subsetlen; ++i) {
-
-            cf[i] = acf[minlag + i];
-
-            int lag = minlag + i;
-            int multiple = 1;
-            int n = 0;
-
-            while (lag * multiple + multiple/2 < acfLength) {
-
-                int minsrc = (lag * multiple) - (multiple/2);
-                int maxsrc = minsrc + multiple - 1;
-
-                double peak = 0.0;
-                for (int j = minsrc; j <= maxsrc; ++j) {
-                    if (acf[j] > peak) peak = acf[j];
-                }
-                cf[i] += peak;
-                ++n;
-
-                if (multiple == 1) multiple = m_beatsPerBar;
-                else multiple = multiple * 2;
-            }
-
-            cf[i] /= n;
-        }
-
-        unityNormalise(cf, subsetlen);
-
-	for (int i = 0; i < subsetlen; ++i) {
+	for (int i = 0; i < cflen; ++i) {
 	    // perceptual weighting: prefer middling values
 	    double bpm = Autocorrelation::lagToBpm(minlag + i, hopsPerSec);
             double weight;
@@ -470,9 +502,9 @@ public:
 	}
 
         std::multimap<double, int> candidateMap;
-	for (int i = 0; i < subsetlen; ++i) {
+	for (int i = 0; i < cflen; ++i) {
             if ((i == 0 || cf[i] > cf[i-1]) &&
-                (i+1 == subsetlen || cf[i] > cf[i+1])) {
+                (i+1 == cflen || cf[i] > cf[i+1])) {
                 candidateMap.insert(std::pair<double, int>(cf[i], i));
             }
 	}
@@ -485,7 +517,7 @@ public:
         while (ci != candidateMap.begin()) {
             --ci;
             int lag = ci->second + minlag;
-            double bpm = BPMRefiner(hopsPerSec).refine(lag, acf, acfLength);
+            double bpm = filter.refine(lag, acf, acfLength);
             m_candidates.push_back(bpm);
         }
 
