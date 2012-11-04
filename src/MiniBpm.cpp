@@ -502,9 +502,8 @@ public:
 	}
 
         std::multimap<double, int> candidateMap;
-	for (int i = 0; i < cflen; ++i) {
-            if ((i == 0 || cf[i] > cf[i-1]) &&
-                (i+1 == cflen || cf[i] > cf[i+1])) {
+	for (int i = 1; i + 1 < cflen; ++i) {
+            if (cf[i] > cf[i-1] && cf[i] > cf[i+1]) {
                 candidateMap.insert(std::pair<double, int>(cf[i], i));
             }
 	}
