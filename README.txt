@@ -36,6 +36,8 @@ Just add MiniBpm.h and MiniBpm.cpp (found in the src/ directory here)
 to your code project.  MiniBPM uses some classes from the C++ standard
 library, but has no other dependencies.
 
-A suite of unit tests is provided using the Boost test framework. To
-run these, run "make" or equivalent in the tests/ directory.
+A suite of unit tests is provided using the Boost test
+framework. (Note that these test the implementation of the method --
+they do not give you any indication of how good the method itself is.)
+To run them, run "make" or equivalent in the tests/ directory.
 

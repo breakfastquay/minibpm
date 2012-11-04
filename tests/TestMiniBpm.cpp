@@ -25,6 +25,7 @@
 
 using breakfastquay::FourierFilterbank;
 using breakfastquay::Autocorrelation;
+using breakfastquay::BPMRefiner;
 using breakfastquay::MiniBPM;
 
 #define BOOST_TEST_DYN_LINK
@@ -177,12 +178,64 @@ BOOST_AUTO_TEST_CASE(bpmLagConversion)
     BOOST_CHECK_EQUAL(lag, 1);
     lag = Autocorrelation::bpmToLag(130.0, 100.0);
     BOOST_CHECK_EQUAL(lag, 46);
+
     double bpm = Autocorrelation::lagToBpm(1, 2.0);
     BOOST_CHECK_EQUAL(bpm, 120.0);
     bpm = Autocorrelation::lagToBpm(50, 100.0);
     BOOST_CHECK_EQUAL(bpm, 120.0);
     bpm = Autocorrelation::lagToBpm(46, 100.0);
     BOOST_CHECK_CLOSE(bpm, 130.0, 0.5);
+    bpm = Autocorrelation::lagToBpm(0.5, 1.0);
+    BOOST_CHECK_CLOSE(bpm, 120.0, 0.1);
+
+    bpm = Autocorrelation::lagToBpm(1, 1.0);
+    BOOST_CHECK_EQUAL(bpm, 60.0);
+    bpm = Autocorrelation::lagToBpm(2, 1.0);
+    BOOST_CHECK_EQUAL(bpm, 30.0);
+    bpm = Autocorrelation::lagToBpm(3, 1.0);
+    BOOST_CHECK_EQUAL(bpm, 20.0);
+    bpm = Autocorrelation::lagToBpm(4, 1.0);
+    BOOST_CHECK_EQUAL(bpm, 15.0);
+}
+
+BOOST_AUTO_TEST_SUITE_END()
+
+BOOST_AUTO_TEST_SUITE(TestBpmRefiner)
+
+BOOST_AUTO_TEST_CASE(refineSingleElement)
+{
+    double acf[] = { 0.0, 1.0 };
+    double bpm = BPMRefiner(1).refine(1, acf, 2);
+    BOOST_CHECK_EQUAL(bpm, 60);
+}
+
+BOOST_AUTO_TEST_CASE(refineEmpty)
+{
+    double acf[] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+    double bpm = BPMRefiner(1).refine(1, acf, 8);
+    BOOST_CHECK_EQUAL(bpm, 60);
+}
+    
+BOOST_AUTO_TEST_CASE(refineTrivial)
+{
+    double acf[] = { 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
+    double bpm = BPMRefiner(1).refine(1, acf, 8);
+    BOOST_CHECK_EQUAL(bpm, 60);
+}
+    
+BOOST_AUTO_TEST_CASE(refineConsistent)
+{
+    double acf[] = { 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0 };
+    double bpm = BPMRefiner(1).refine(1, acf, 8);
+    BOOST_CHECK_EQUAL(bpm, 60);
+}
+
+BOOST_AUTO_TEST_CASE(refineAdjusting)
+{
+    double acf[] = { 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0 };
+    double bpm = BPMRefiner(1).refine(1, acf, 8);
+    BOOST_CHECK_LT(bpm, 60);
+    BOOST_CHECK_GT(bpm, 50);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
@@ -326,6 +379,10 @@ BOOST_AUTO_TEST_CASE(candidates)
     BOOST_CHECK(candidates.size() > 1);
     BOOST_CHECK_CLOSE(candidates[0], 120.0, 0.25);
     BOOST_CHECK_CLOSE(candidates[1], 60.0, 0.25);
+    for (int i = 0; i < candidates.size(); ++i) {
+	BOOST_CHECK_GE(candidates[i], min);
+	BOOST_CHECK_LE(candidates[i], max);
+    }
 }
 
 BOOST_AUTO_TEST_SUITE_END()

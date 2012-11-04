@@ -79,7 +79,7 @@ public:
     static int bpmToLag(double bpm, double hopsPerSec) {
 	return int((60.0 / bpm) * hopsPerSec + 0.5);
     }
-    static double lagToBpm(int lag, double hopsPerSec) {
+    static double lagToBpm(double lag, double hopsPerSec) {
 	return (60.0 * hopsPerSec) / lag;
     }
 
@@ -157,6 +157,54 @@ private:
 	    }
 	}
     }
+};
+
+class BPMRefiner
+{
+public:
+    BPMRefiner(double hopsPerSec) : m_hopsPerSec(hopsPerSec) { }
+    ~BPMRefiner() { }
+
+    double refine(int lag, const double *acf, int acfLength) {
+        
+        int multiple = 1;
+        double interpolated = lag;
+
+        double total = 0.0;
+        int count = 0;
+
+        while (lag * multiple + multiple <= acfLength) {
+
+            int base = lag * multiple;
+
+            double peak = 0.0;
+            int peakidx = 0;
+            for (int i = base; i < base + multiple; ++i) {
+                if (i == base || acf[i] > peak) {
+                    peak = acf[i];
+                    peakidx = i;
+                }
+            }
+            
+            if (peak > 0.0) {
+                double scaled = double(peakidx) / multiple;
+                total += scaled;
+                ++count;
+            }
+            
+            multiple = multiple * 2;
+        }
+
+        if (count > 0) {
+            interpolated = total / count;
+        }
+    
+        double bpm = Autocorrelation::lagToBpm(interpolated, m_hopsPerSec);
+        return bpm;
+    }
+
+private:
+    double m_hopsPerSec;
 };
 
 class MiniBPM::D
@@ -253,42 +301,6 @@ public:
 	    tot += sqrt(fabs(a[i]*a[i] - b[i]*b[i]));
 	}
 	return tot;
-    }
-
-    double interpolateBPM(int lag, const double *acf, int acfLength,
-                          double hopsPerSec)
-    {
-        int multiple = 1;
-        double interpolated = lag;
-
-        double total = 0.0;
-        int count = 0;
-
-        while (lag * multiple + multiple/2 + 1 < acfLength) {
-
-            int base = lag * multiple - multiple/2 - 1;
-            int n = multiple + 2;
-
-            double peak = 0.0;
-            int peakidx = 0;
-            for (int i = base; i < base+n; ++i) {
-                if (acf[i] > peak) {
-                    peak = acf[i];
-                    peakidx = i;
-                }
-            }
-            double scaled = double(peakidx) / multiple;
-            total += scaled;
-            
-            multiple = multiple * 2;
-            ++count;
-        }
-
-        if (count > 0) {
-            interpolated = total / count;
-        }
-    
-        return (60.0 * hopsPerSec) / interpolated;
     }
 
     double estimateTempoOfSamples(const float *samples, int nsamples)
@@ -416,6 +428,8 @@ public:
 
         for (int i = 0; i < subsetlen; ++i) {
 
+            cf[i] = acf[minlag + i];
+
             int lag = minlag + i;
             int multiple = 1;
             int n = 0;
@@ -471,7 +485,7 @@ public:
         while (ci != candidateMap.begin()) {
             --ci;
             int lag = ci->second + minlag;
-            double bpm = interpolateBPM(lag, acf, acfLength, hopsPerSec);
+            double bpm = BPMRefiner(hopsPerSec).refine(lag, acf, acfLength);
             m_candidates.push_back(bpm);
         }
 
