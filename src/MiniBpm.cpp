@@ -77,7 +77,7 @@ public:
     }
 
     static int bpmToLag(double bpm, double hopsPerSec) {
-	return int((60.0 / bpm) * hopsPerSec);
+	return int((60.0 / bpm) * hopsPerSec + 0.5);
     }
     static double lagToBpm(int lag, double hopsPerSec) {
 	return (60.0 * hopsPerSec) / lag;
