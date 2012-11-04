@@ -41,42 +41,6 @@ namespace breakfastquay {
  * A single channel of audio only may be supplied (multi-channel is
  * not supported). To process multi-channel audio, average the
  * channels first.
- *
- * Method:
- *
- * - Take the audio as a sequence of overlapping time-domain
- *   frames. The frame size is chosen so that, following a Fourier
- *   transform, the frequency range up to about an octave above
- *   middle-C would take about half a dozen bins. This is a relatively
- *   short frame giving quite good time resolution.
- *
- * - For each frame, extract the low-frequency range into the
- *   frequency domain (up to a cutoff around 400-500 Hz) using a small
- *   filterbank. Also extract a single bin from a high frequency range
- *   (around 9K) for broadband noise, and calculate the overall RMS of
- *   the frame.  (The low-frequency feature is the main contributor to
- *   tempo estimation, the other two are used as fallbacks if there is
- *   not enough low-frequency information.)  Accumulate sequences of
- *   framewise spectral difference sums for the frequency domain
- *   information, and a sequence of the RMS values, across the
- *   duration of the audio.
- *
- * - When all audio has been processed, calculate an autocorrelation
- *   of each of the three features normalised to unity maximum, and
- *   calculate a weighted sum of the autocorrelations (discarding any
- *   phase difference between the three signals) with the
- *   low-frequency feature given the most weight.
- *
- * - Drag a comb filter across the subset of the summed
- *   autocorrelation sequence that corresponds to the plausible tempo
- *   range. Allocate to each lag a weighted sum of its value and those
- *   of elements around beats-per-bar multiples of its lag.
- *
- * - Apply a simplistic perceptual weighting filter to prefer tempi
- *   around 120-130bpm.
- *
- * - Find the peak of the resulting filtered autocorrelation and
- *   return its corresponding tempo.
  */
 class MiniBPM
 {
