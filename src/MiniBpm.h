@@ -32,11 +32,12 @@ namespace breakfastquay {
  * A fixed-tempo BPM estimator, self-contained and implemented in a
  * single C++ file.
  *
- * This may be used in two ways: either call estimateTempoOfSamples()
- * with a single in-memory buffer of all audio samples, or (if the
- * input data is streamed or cannot fit in memory) call process()
- * repeatedly with consecutive sample blocks of any size, followed by
- * estimateTempo() when all samples have been supplied.
+ * This may be used in two ways. After constructing a MiniBPM object,
+ * you can call estimateTempoOfSamples() on it with a single in-memory
+ * buffer of all audio samples. Or, if the input data is streamed or
+ * cannot fit in memory, call process() repeatedly with consecutive
+ * sample blocks of any size, followed by estimateTempo() when all
+ * samples have been supplied.
  *
  * A single channel of audio only may be supplied (multi-channel is
  * not supported). To process multi-channel audio, average the
@@ -45,6 +46,10 @@ namespace breakfastquay {
 class MiniBPM
 {
 public:
+    /**
+     * Construct a MiniBPM object to process audio at the given sample
+     * rate.
+     */
     MiniBPM(float sampleRate);
     ~MiniBPM();
 
@@ -52,6 +57,10 @@ public:
      * Set the range of valid tempi. The default is 55-190bpm.
      */
     void setBPMRange(double min, double max);
+
+    /**
+     * Get the current range of valid tempi.
+     */
     void getBPMRange(double &min, double &max) const;
 
     /**
@@ -59,6 +68,10 @@ public:
      * the default (which is 4).
      */
     void setBeatsPerBar(int bpb);
+
+    /**
+     * Get the current number of beats per bar.
+     */
     int getBeatsPerBar() const;
 
     /**
@@ -108,6 +121,12 @@ private:
     class D;
     D *m_d;
 };
+
+/**
+ * @mainpage
+ * A fixed-tempo BPM estimator, self-contained and implemented in a
+ * single C++ file. The entire API is defined by the MiniBPM class.
+ */
 
 }
 
