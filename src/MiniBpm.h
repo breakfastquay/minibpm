@@ -3,7 +3,7 @@
 /*
     MiniBPM
     A fixed-tempo BPM estimator for music audio
-    Copyright 2012 Particular Programs Ltd.
+    Copyright 2012-2014 Particular Programs Ltd.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -84,6 +84,11 @@ public:
      * calls followed by an estimateTempo() call. Do not call both
      * process() and estimateTempoOfSamples() on the same estimator
      * object.
+     *
+     * If you wish to subsequently obtain a tempo estimate of a
+     * different clip, you must call reset() before calling this
+     * function again. (This is so that the data that is available to
+     * be returned from getTempoCandidates can be cleared.)
      */
     double estimateTempoOfSamples(const float *samples, int nsamples);
 
@@ -106,7 +111,8 @@ public:
      * Return all candidate tempi for the last tempo estimation that
      * was carried out, in order of likelihood (best first). The value
      * returned from estimateTempo or estimateTempoOfSamples will
-     * therefore be the first in the returned sequence.
+     * therefore be the first in the returned sequence. Calling
+     * reset() will clear this information.
      */
     std::vector<double> getTempoCandidates() const;
 
