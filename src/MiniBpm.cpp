@@ -3,7 +3,7 @@
 /*
     MiniBPM
     A fixed-tempo BPM estimator for music audio
-    Copyright 2012 Particular Programs Ltd.
+    Copyright 2012-2014 Particular Programs Ltd.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -461,6 +461,7 @@ public:
 	m_lfdf.clear();
 	m_hfdf.clear();
 	m_rms.clear();
+        m_candidates.clear();
 	m_partialFill = 0;
     }
 
@@ -506,13 +507,13 @@ public:
 
 	zero(acf, acfLength);
 
-	acfcalc.acfUnityNormalised(m_lfdf.data(), temp);
+	acfcalc.acfUnityNormalised(&m_lfdf[0], temp);
 	for (int i = 0; i < acfLength; ++i) acf[i] += temp[i];
 
-	acfcalc.acfUnityNormalised(m_hfdf.data(), temp);
+	acfcalc.acfUnityNormalised(&m_hfdf[0], temp);
 	for (int i = 0; i < acfLength; ++i) acf[i] += temp[i] * 0.5;
 
-	acfcalc.acfUnityNormalised(m_rms.data(), temp);
+	acfcalc.acfUnityNormalised(&m_rms[0], temp);
 	for (int i = 0; i < acfLength; ++i) acf[i] += temp[i] * 0.1;
 
 	int minlag = Autocorrelation::bpmToLag(m_maxbpm, hopsPerSec);

@@ -3,7 +3,7 @@
 /*
     MiniBPM
     A fixed-tempo BPM estimator for music audio
-    Copyright 2012 Particular Programs Ltd.
+    Copyright 2012-2014 Particular Programs Ltd.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as

@@ -21,121 +21,98 @@
     valid commercial licence before doing so.
 */
 
-#ifndef _BQ_MINI_BPM_H_
-#define _BQ_MINI_BPM_H_
-
-#include <vector>
-
-namespace breakfastquay {
+package com.breakfastquay.minibpm;
 
 /**
- * A fixed-tempo BPM estimator, self-contained and implemented in a
- * single C++ file.
- *
- * This may be used in two ways. After constructing a MiniBPM object,
- * you can call estimateTempoOfSamples() on it with a single in-memory
- * buffer of all audio samples. Or, if the input data is streamed or
- * cannot fit in memory, call process() repeatedly with consecutive
- * sample blocks of any size, followed by estimateTempo() when all
- * samples have been supplied.
+ * A fixed-tempo BPM estimator. This Java wrapper currently provides
+ * only the single-shot API from the C++ library.
  *
  * A single channel of audio only may be supplied (multi-channel is
  * not supported). To process multi-channel audio, average the
  * channels first.
  */
-class MiniBPM
+public class MiniBpm
 {
-public:
+    public MiniBpm(int sampleRate) {
+	handle = 0;
+	initialise(sampleRate);
+    }
+
     /**
-     * Construct a MiniBPM object to process audio at the given sample
-     * rate.
+     * Call this to dispose of the tempo estimator after use. You must
+     * do so after you have finished using this estimator object, as
+     * the Java garbage collector cannot collect the native object.
      */
-    MiniBPM(float sampleRate);
-    ~MiniBPM();
+    public native void dispose();
 
     /**
      * Set the range of valid tempi. The default is 55-190bpm.
      */
-    void setBPMRange(double min, double max);
+    public native void setBPMRange(double min, double max);
 
     /**
-     * Get the current range of valid tempi.
+     * Get the current minimum supported tempo.
      */
-    void getBPMRange(double &min, double &max) const;
+    public native double getBPMMin();
+
+    /**
+     * Get the current maximum supported tempo.
+     */
+    public native double getBPMMax();
 
     /**
      * Set the number of beats per bar, if known. If unknown, leave at
      * the default (which is 4).
      */
-    void setBeatsPerBar(int bpb);
+    public native void setBeatsPerBar(int bpb);
 
     /**
      * Get the current number of beats per bar. (This simply returns
      * the value set by setBeatsPerBar, which is a hint to the tempo
      * estimator: the estimator does not estimate meter.)
      */
-    int getBeatsPerBar() const;
+    public native int getBeatsPerBar();
 
     /**
      * Return the estimated tempo in bpm of the music audio in the
      * given sequence of samples. nsamples contains the number of
-     * samples. If the tempo cannot be estimated because the clip is
-     * too short, return 0.
+     * samples, starting at the given offset in the given input
+     * array. If the tempo cannot be estimated because the clip is too
+     * short, return 0.
      *
-     * You should use either this function, or a series of process()
-     * calls followed by an estimateTempo() call. Do not call both
-     * process() and estimateTempoOfSamples() on the same estimator
-     * object.
+     * The input samples are expected to be in the range [-1,1].
      *
      * If you wish to subsequently obtain a tempo estimate of a
      * different clip, you must call reset() before calling this
      * function again. (This is so that the data that is available to
      * be returned from getTempoCandidates can be cleared.)
      */
-    double estimateTempoOfSamples(const float *samples, int nsamples);
-
-    /**
-     * Supply a single block of audio for processing. The block may be
-     * of any length. Blocks are assumed to be contiguous
-     * (i.e. without overlap).
-     */
-    void process(const float *samples, int nsamples);
-
-    /**
-     * Return the estimated tempo in bpm of the music audio in the
-     * sequence of samples previously supplied through a series of
-     * calls to process(). If the tempo cannot be estimated because
-     * the clip is too short, return 0.
-     */
-    double estimateTempo();
+    public native double estimateTempoOfSamples(float[] input,
+						int offset, int nsamples);
 
     /**
      * Return all candidate tempi for the last tempo estimation that
      * was carried out, in order of likelihood (best first). The value
-     * returned from estimateTempo or estimateTempoOfSamples will
-     * therefore be the first in the returned sequence. Calling
-     * reset() will clear this information.
+     * returned from estimateTempoOfSamples will therefore be the
+     * first in the returned sequence. Calling reset() will clear this
+     * information.
      */
-    std::vector<double> getTempoCandidates() const;
+    public native double[] getTempoCandidates();
 
     /**
      * Prepare the object to carry out another tempo estimation on a
      * new audio clip. You can either call this between uses, or
      * simply destroy this object and construct a new one.
      */
-    void reset();
+    public native void reset();
 
-private:
-    class D;
-    D *m_d;
+    private native void initialise(int sampleRate);
+    private long handle;
+
+    static {
+	System.loadLibrary("minibpm-jni");
+    }
 };
 
-/**
- * @mainpage
- * A fixed-tempo BPM estimator, self-contained and implemented in a
- * single C++ file. The entire API is defined by the MiniBPM class.
- */
 
-}
-
-#endif
+    

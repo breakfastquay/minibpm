@@ -6,7 +6,7 @@ A simple beats-per-minute estimator for fixed-tempo music audio,
 implemented in C++ with few external dependencies.
 
 Written by Chris Cannam, chris.cannam@breakfastquay.com.
-Copyright 2012 Particular Programs Ltd.
+Copyright 2012-2014 Particular Programs Ltd.
 
 See http://breakfastquay.com/minibpm/ for more information.
 
