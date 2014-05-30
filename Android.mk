@@ -2,9 +2,9 @@
 LOCAL_MODULE := minibpm
 LOCAL_MODULE_FILENAME := libminibpm-jni
 
-LOCAL_C_INCLUDES := $(LOCAL_PATH)/src
+LOCAL_C_INCLUDES := $(LOCAL_PATH)/minibpm/src 
 
-MINIBPM_PATH := .
+MINIBPM_PATH := minibpm
 MINIBPM_SRC_PATH := $(MINIBPM_PATH)/src
 
 MINIBPM_JNI_FILES := \

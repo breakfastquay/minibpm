@@ -21,7 +21,7 @@
     valid commercial licence before doing so.
 */
 
-#include "MiniBPM.h"
+#include "MiniBpm.h"
 
 #include <jni.h>
 
@@ -180,7 +180,6 @@ JNIEXPORT jdouble JNICALL
 Java_com_breakfastquay_minibpm_MiniBpm_estimateTempoOfSamples(JNIEnv *env, jobject obj, jfloatArray data, jint offset, jint n)
 {
     float *arr = env->GetFloatArrayElements(data, 0);
-    float *in = arr + offset;
 
     double estimate =
         getMiniBPM(env, obj)->estimateTempoOfSamples(arr + offset, n);
@@ -195,7 +194,7 @@ Java_com_breakfastquay_minibpm_MiniBpm_getTempoCandidates(JNIEnv *env, jobject o
 {
     std::vector<double> candidates = getMiniBPM(env, obj)->getTempoCandidates();
     jdoubleArray out = env->NewDoubleArray(candidates.size());
-    env->SetDoubleArrayRegion(out, 0, candidates.size(), candidates.data());
+    env->SetDoubleArrayRegion(out, 0, candidates.size(), &candidates[0]);
     return out;
 }
 

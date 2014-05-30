@@ -507,13 +507,13 @@ public:
 
 	zero(acf, acfLength);
 
-	acfcalc.acfUnityNormalised(m_lfdf.data(), temp);
+	acfcalc.acfUnityNormalised(&m_lfdf[0], temp);
 	for (int i = 0; i < acfLength; ++i) acf[i] += temp[i];
 
-	acfcalc.acfUnityNormalised(m_hfdf.data(), temp);
+	acfcalc.acfUnityNormalised(&m_hfdf[0], temp);
 	for (int i = 0; i < acfLength; ++i) acf[i] += temp[i] * 0.5;
 
-	acfcalc.acfUnityNormalised(m_rms.data(), temp);
+	acfcalc.acfUnityNormalised(&m_rms[0], temp);
 	for (int i = 0; i < acfLength; ++i) acf[i] += temp[i] * 0.1;
 
 	int minlag = Autocorrelation::bpmToLag(m_maxbpm, hopsPerSec);
