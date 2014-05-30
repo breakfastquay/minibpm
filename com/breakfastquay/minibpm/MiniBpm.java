@@ -67,7 +67,9 @@ public class MiniBpm
     public native void setBeatsPerBar(int bpb);
 
     /**
-     * Get the current number of beats per bar.
+     * Get the current number of beats per bar. (This simply returns
+     * the value set by setBeatsPerBar, which is a hint to the tempo
+     * estimator: the estimator does not estimate meter.)
      */
     public native int getBeatsPerBar();
 
