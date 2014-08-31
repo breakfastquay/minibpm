@@ -258,7 +258,9 @@ public:
                 else multiple = multiple * 2;
             }
 
-            filtered[i] /= n;
+            if (n != 0) {
+                filtered[i] /= n;
+            }
         }
     }
 
@@ -521,6 +523,8 @@ public:
 
 	if (acfLength < maxlag) {
 	    // Not enough data
+            delete[] acf;
+            delete[] temp;
 	    return 0.0;
 	}
 
@@ -552,6 +556,9 @@ public:
 	}
 
         if (candidateMap.empty()) {
+            delete[] cf;
+            delete[] acf;
+            delete[] temp;
             return 0.0;
         }
 
