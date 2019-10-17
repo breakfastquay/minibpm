@@ -1,5 +1,5 @@
 
-CXXFLAGS := -O3 -Wall
+CXXFLAGS := -O3 -Wall -std=c++98
 
 default: libminibpm.a test
 
