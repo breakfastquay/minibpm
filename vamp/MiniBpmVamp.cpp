@@ -63,7 +63,7 @@ string
 MiniBpmVamp::getMaker() const
 {
     // Your name here
-    return "";
+    return "Breakfast Quay";
 }
 
 int
@@ -81,7 +81,7 @@ MiniBpmVamp::getCopyright() const
     // need to say who made the plugin -- getMaker does that -- but it
     // should indicate the terms under which it is distributed.  For
     // example, "Copyright (year). All Rights Reserved", or "GPL"
-    return "";
+    return "GPL";
 }
 
 MiniBpmVamp::InputDomain
