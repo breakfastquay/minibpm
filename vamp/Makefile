@@ -7,7 +7,7 @@ VAMP_SOURCES	:= libmain.cpp MiniBpmVamp.cpp
 MINIBPM_SOURCES	:= ../src/MiniBpm.cpp
 MINIBPM_HEADERS	:= ../src/MiniBpm.h
 
-CXXFLAGS	:= -I../src
+CXXFLAGS	:= -I../src -fPIC
 
 VAMP_LDFLAGS	:= $(LDFLAGS) $(PLUGIN_LDFLAGS) -lvamp-sdk
 
