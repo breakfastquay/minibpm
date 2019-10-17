@@ -94,24 +94,24 @@ public:
 
     template <typename T>
     void acf(const T *R__ in, T *R__ out) const {
-	for (int i = 0; i < m_m; ++i) {
-	    out[i] = 0.0;
-	    for (int j = i; j < m_n; ++j) {
-		out[i] += in[j] * in[j - i];
-	    }
-	}
+        for (int i = 0; i < m_m; ++i) {
+            out[i] = 0.0;
+            for (int j = i; j < m_n; ++j) {
+                out[i] += in[j] * in[j - i];
+            }
+        }
     }
 
     template <typename T>
     void acfUnityNormalised(const T *R__ in, T *R__ out) const {
 
-	acf(in, out);
+        acf(in, out);
 
         double max = 0.0;
-	for (int i = 0; i < m_m; ++i) {
-	    out[i] /= m_n - i;
+        for (int i = 0; i < m_m; ++i) {
+            out[i] /= m_n - i;
             if (out[i] > max) max = out[i];
-	}
+        }
         if (max > 0.0) {
             for (int i = 0; i < m_m; ++i) {
                 out[i] /= max;
@@ -120,10 +120,10 @@ public:
     }
 
     static int bpmToLag(double bpm, double hopsPerSec) {
-	return int((60.0 / bpm) * hopsPerSec + 0.5);
+        return int((60.0 / bpm) * hopsPerSec + 0.5);
     }
     static double lagToBpm(double lag, double hopsPerSec) {
-	return (60.0 * hopsPerSec) / lag;
+        return (60.0 * hopsPerSec) / lag;
     }
 
 private:
@@ -135,14 +135,14 @@ class FourierFilterbank
 {
 public:
     FourierFilterbank(int n, double fs, double minFreq, double maxFreq,
-		      bool windowed) :
-	m_n(n), m_fs(fs), m_fmin(minFreq), m_fmax(maxFreq),
-	m_windowed(windowed)
+                      bool windowed) :
+        m_n(n), m_fs(fs), m_fmin(minFreq), m_fmax(maxFreq),
+        m_windowed(windowed)
     {
-	m_binmin = int(floor(n * m_fmin) / fs);
-	m_binmax = int(ceil(n * m_fmax) / fs);
-	m_bins = m_binmax - m_binmin + 1;
-	initFilters();
+        m_binmin = int(floor(n * m_fmin) / fs);
+        m_binmax = int(ceil(n * m_fmax) / fs);
+        m_bins = m_binmax - m_binmin + 1;
+        initFilters();
     }
 
     ~FourierFilterbank() {
@@ -155,18 +155,18 @@ public:
     }
 
     int getOutputSize() const {
-	return m_bins;
+        return m_bins;
     }
 
     void forwardMagnitude(const double *R__ realIn, double *R__ magOut) const {
-	for (int i = 0; i < m_bins; ++i) {
-	    const double *R__ sin = m_sin[i];
-	    const double *R__ cos = m_cos[i];
-	    double real = 0.0, imag = 0.0;
-	    for (int j = 0; j < m_n; ++j) real += realIn[j] * cos[j];
-	    for (int j = 0; j < m_n; ++j) imag += realIn[j] * sin[j];
-	    magOut[i] = sqrt(real*real + imag*imag);
-	}
+        for (int i = 0; i < m_bins; ++i) {
+            const double *R__ sin = m_sin[i];
+            const double *R__ cos = m_cos[i];
+            double real = 0.0, imag = 0.0;
+            for (int j = 0; j < m_n; ++j) real += realIn[j] * cos[j];
+            for (int j = 0; j < m_n; ++j) imag += realIn[j] * sin[j];
+            magOut[i] = sqrt(real*real + imag*imag);
+        }
     }
 
 private:
@@ -185,20 +185,20 @@ private:
     void initFilters() {
         m_sin = new double*[m_bins];
         m_cos = new double*[m_bins];
-	double twopi = M_PI * 2.0;
+        double twopi = M_PI * 2.0;
         double win = 1.0;
-	for (int i = 0; i < m_bins; ++i) {
+        for (int i = 0; i < m_bins; ++i) {
             m_sin[i] = new double[m_n];
             m_cos[i] = new double[m_n];
-	    int bin = i + m_binmin;
-	    double delta = (twopi * bin) / m_n;
-	    for (int j = 0; j < m_n; ++j) {
-		double angle = j * delta;
+            int bin = i + m_binmin;
+            double delta = (twopi * bin) / m_n;
+            for (int j = 0; j < m_n; ++j) {
+                double angle = j * delta;
                 if (m_windowed) win = 0.5 - 0.5 * cos(twopi * j / m_n);
-		m_sin[i][j] = sin(angle) * win;
-		m_cos[i][j] = cos(angle) * win;
-	    }
-	}
+                m_sin[i][j] = sin(angle) * win;
+                m_cos[i][j] = cos(angle) * win;
+            }
+        }
     }
 };
 
@@ -230,7 +230,7 @@ public:
 
     void filter(const double *acf, int acfLength, double *filtered) {
         
-	int flen = getFilteredLength();
+        int flen = getFilteredLength();
     
         for (int i = 0; i < flen; ++i) {
             
@@ -323,11 +323,11 @@ public:
 
     template <typename S, typename T>
     void copy(T *R__ t, const S *R__ s, const int n) {
-	for (int i = 0; i < n; ++i) t[i] = s[i];
+        for (int i = 0; i < n; ++i) t[i] = s[i];
     }
     template <typename T>
     void zero(T *R__ t, const int n) {
-	for (int i = 0; i < n; ++i) t[i] = T(0);
+        for (int i = 0; i < n; ++i) t[i] = T(0);
     }
     template <typename T>
     void unityNormalise(T *R__ t, const int n) {
@@ -344,114 +344,114 @@ public:
     }
 
     D(float sampleRate) :
-	m_minbpm(55),
-	m_maxbpm(190),
-	m_beatsPerBar(4),
-	m_inputSampleRate(sampleRate),
-	m_lfmin(0),
-	m_lfmax(550),
-	m_hfmin(9000),
-	m_hfmax(9001),
-	m_input(0),
-	m_partial(0),
-	m_partialFill(0),
-	m_frame(0),
-	m_lfprev(0),
-	m_hfprev(0)
+        m_minbpm(55),
+        m_maxbpm(190),
+        m_beatsPerBar(4),
+        m_inputSampleRate(sampleRate),
+        m_lfmin(0),
+        m_lfmax(550),
+        m_hfmin(9000),
+        m_hfmax(9001),
+        m_input(0),
+        m_partial(0),
+        m_partialFill(0),
+        m_frame(0),
+        m_lfprev(0),
+        m_hfprev(0)
     {
-	int lfbinmax = 6;
-	m_blockSize = (m_inputSampleRate * lfbinmax) / m_lfmax;
-	m_stepSize = m_blockSize / 2;
+        int lfbinmax = 6;
+        m_blockSize = (m_inputSampleRate * lfbinmax) / m_lfmax;
+        m_stepSize = m_blockSize / 2;
 
-	m_lf = new FourierFilterbank(m_blockSize, m_inputSampleRate, 
-				     m_lfmin, m_lfmax, true);
+        m_lf = new FourierFilterbank(m_blockSize, m_inputSampleRate, 
+                                     m_lfmin, m_lfmax, true);
 
-	m_hf = new FourierFilterbank(m_blockSize, m_inputSampleRate, 
-				     m_hfmin, m_hfmax, true);
+        m_hf = new FourierFilterbank(m_blockSize, m_inputSampleRate, 
+                                     m_hfmin, m_hfmax, true);
 
-	int lfsize = m_lf->getOutputSize();
-	int hfsize = m_hf->getOutputSize();
+        int lfsize = m_lf->getOutputSize();
+        int hfsize = m_hf->getOutputSize();
 
-	m_lfprev = new double[lfsize];
-	for (int i = 0; i < lfsize; ++i) m_lfprev[i] = 0.0;
+        m_lfprev = new double[lfsize];
+        for (int i = 0; i < lfsize; ++i) m_lfprev[i] = 0.0;
 
-	m_hfprev = new double[hfsize];
-	for (int i = 0; i < hfsize; ++i) m_hfprev[i] = 0.0;
+        m_hfprev = new double[hfsize];
+        for (int i = 0; i < hfsize; ++i) m_hfprev[i] = 0.0;
 
-	m_input = new double[m_blockSize];
-	m_partial = new double[m_stepSize];
+        m_input = new double[m_blockSize];
+        m_partial = new double[m_stepSize];
 
     int frameSize = std::max(lfsize, hfsize);
-	m_frame = new double[frameSize];
+        m_frame = new double[frameSize];
 
         zero(m_input, m_blockSize);
         zero(m_partial, m_stepSize);
         zero(m_frame, frameSize);
     }
-	
+        
     ~D()
     {
-	delete m_lf;
-	delete m_hf;
-	delete[] m_lfprev;
-	delete[] m_hfprev;
-	delete[] m_input;
-	delete[] m_partial;
-	delete[] m_frame;
+        delete m_lf;
+        delete m_hf;
+        delete[] m_lfprev;
+        delete[] m_hfprev;
+        delete[] m_input;
+        delete[] m_partial;
+        delete[] m_frame;
     }
 
     double
     specdiff(const double *a, const double *b, int n)
     {
-	double tot = 0.0;
-	for (int i = 0; i < n; ++i) {
-	    tot += sqrt(fabs(a[i]*a[i] - b[i]*b[i]));
-	}
-	return tot;
+        double tot = 0.0;
+        for (int i = 0; i < n; ++i) {
+            tot += sqrt(fabs(a[i]*a[i] - b[i]*b[i]));
+        }
+        return tot;
     }
 
     double estimateTempoOfSamples(const float *samples, int nsamples)
     {
-	int i = 0;
-	while (i + m_blockSize < nsamples) {
-	    copy(m_input, samples + i, m_blockSize);
-	    processInputBlock();
-	    i += m_stepSize;
-	}
-	return finish();
+        int i = 0;
+        while (i + m_blockSize < nsamples) {
+            copy(m_input, samples + i, m_blockSize);
+            processInputBlock();
+            i += m_stepSize;
+        }
+        return finish();
     }
 
     void process(const float *samples, int nsamples)
     {
-	int n = 0;
-	while (n < nsamples) {
-	    int hole = m_blockSize - m_stepSize;
-	    int remaining = nsamples - n;
-	    if (m_partialFill + remaining < m_stepSize) {
-		copy(m_partial + m_partialFill, samples + n, remaining);
-		m_partialFill += remaining;
-		break;
-	    }
-	    copy(m_input + hole, m_partial, m_partialFill);
-	    int toConsume = m_stepSize - m_partialFill;
-	    copy(m_input + hole + m_partialFill, samples + n, toConsume);
-	    n += toConsume;
-	    m_partialFill = 0;
-	    processInputBlock();
-	    copy(m_input, m_input + m_stepSize, hole);
-	}
+        int n = 0;
+        while (n < nsamples) {
+            int hole = m_blockSize - m_stepSize;
+            int remaining = nsamples - n;
+            if (m_partialFill + remaining < m_stepSize) {
+                copy(m_partial + m_partialFill, samples + n, remaining);
+                m_partialFill += remaining;
+                break;
+            }
+            copy(m_input + hole, m_partial, m_partialFill);
+            int toConsume = m_stepSize - m_partialFill;
+            copy(m_input + hole + m_partialFill, samples + n, toConsume);
+            n += toConsume;
+            m_partialFill = 0;
+            processInputBlock();
+            copy(m_input, m_input + m_stepSize, hole);
+        }
     }
 
     double estimateTempo()
     {
-	if (m_partialFill > 0) {
-	    int hole = m_blockSize - m_stepSize;
-	    copy(m_input + hole, m_partial, m_partialFill);
-	    zero(m_input + hole + m_partialFill, m_stepSize - m_partialFill);
-	    m_partialFill = 0;
-	    processInputBlock();
-	}
-	return finish();
+        if (m_partialFill > 0) {
+            int hole = m_blockSize - m_stepSize;
+            copy(m_input + hole, m_partial, m_partialFill);
+            zero(m_input + hole + m_partialFill, m_stepSize - m_partialFill);
+            m_partialFill = 0;
+            processInputBlock();
+        }
+        return finish();
     }
 
     std::vector<double> getTempoCandidates() const
@@ -461,83 +461,83 @@ public:
 
     void reset()
     {
-	m_lfdf.clear();
-	m_hfdf.clear();
-	m_rms.clear();
+        m_lfdf.clear();
+        m_hfdf.clear();
+        m_rms.clear();
         m_candidates.clear();
-	m_partialFill = 0;
+        m_partialFill = 0;
     }
 
     void processInputBlock()
     {
-	double rms = 0.0;
+        double rms = 0.0;
 
-	for (int i = 0; i < m_blockSize; ++i) {
-	    rms += m_input[i] * m_input[i];
-	}
+        for (int i = 0; i < m_blockSize; ++i) {
+            rms += m_input[i] * m_input[i];
+        }
 
-	rms = sqrt(rms / m_blockSize);
-	m_rms.push_back(rms);
+        rms = sqrt(rms / m_blockSize);
+        m_rms.push_back(rms);
 
-	int lfsize = m_lf->getOutputSize();
-	int hfsize = m_hf->getOutputSize();
+        int lfsize = m_lf->getOutputSize();
+        int hfsize = m_hf->getOutputSize();
 
-	m_lf->forwardMagnitude(m_input, m_frame);
-	m_lfdf.push_back(specdiff(m_frame, m_lfprev, lfsize));
-	copy(m_lfprev, m_frame, lfsize);
-	
-	m_hf->forwardMagnitude(m_input, m_frame);
-	m_hfdf.push_back(specdiff(m_frame, m_hfprev, hfsize));
-	copy(m_hfprev, m_frame, hfsize);
+        m_lf->forwardMagnitude(m_input, m_frame);
+        m_lfdf.push_back(specdiff(m_frame, m_lfprev, lfsize));
+        copy(m_lfprev, m_frame, lfsize);
+        
+        m_hf->forwardMagnitude(m_input, m_frame);
+        m_hfdf.push_back(specdiff(m_frame, m_hfprev, hfsize));
+        copy(m_hfprev, m_frame, hfsize);
     }
 
     double finish()
     {
         m_candidates.clear();
 
-	double hopsPerSec = m_inputSampleRate / m_stepSize;
-	int dfLength = m_lfdf.size();
+        double hopsPerSec = m_inputSampleRate / m_stepSize;
+        int dfLength = m_lfdf.size();
 
-	// We have no use for any lag beyond 4 bars at minimum bpm
-	double barPM = m_minbpm / (4 * m_beatsPerBar);
-	int acfLength = Autocorrelation::bpmToLag(barPM, hopsPerSec);
+        // We have no use for any lag beyond 4 bars at minimum bpm
+        double barPM = m_minbpm / (4 * m_beatsPerBar);
+        int acfLength = Autocorrelation::bpmToLag(barPM, hopsPerSec);
         while (acfLength > dfLength) acfLength /= 2;
 
-	Autocorrelation acfcalc(dfLength, acfLength);
+        Autocorrelation acfcalc(dfLength, acfLength);
 
-	double *acf = new double[acfLength];
-	double *temp = new double[acfLength];
+        double *acf = new double[acfLength];
+        double *temp = new double[acfLength];
 
-	zero(acf, acfLength);
+        zero(acf, acfLength);
 
-	acfcalc.acfUnityNormalised(&m_lfdf[0], temp);
-	for (int i = 0; i < acfLength; ++i) acf[i] += temp[i];
+        acfcalc.acfUnityNormalised(&m_lfdf[0], temp);
+        for (int i = 0; i < acfLength; ++i) acf[i] += temp[i];
 
-	acfcalc.acfUnityNormalised(&m_hfdf[0], temp);
-	for (int i = 0; i < acfLength; ++i) acf[i] += temp[i] * 0.5;
+        acfcalc.acfUnityNormalised(&m_hfdf[0], temp);
+        for (int i = 0; i < acfLength; ++i) acf[i] += temp[i] * 0.5;
 
-	acfcalc.acfUnityNormalised(&m_rms[0], temp);
-	for (int i = 0; i < acfLength; ++i) acf[i] += temp[i] * 0.1;
+        acfcalc.acfUnityNormalised(&m_rms[0], temp);
+        for (int i = 0; i < acfLength; ++i) acf[i] += temp[i] * 0.1;
 
-	int minlag = Autocorrelation::bpmToLag(m_maxbpm, hopsPerSec);
-	int maxlag = Autocorrelation::bpmToLag(m_minbpm, hopsPerSec);
+        int minlag = Autocorrelation::bpmToLag(m_maxbpm, hopsPerSec);
+        int maxlag = Autocorrelation::bpmToLag(m_minbpm, hopsPerSec);
 
-	if (acfLength < maxlag) {
-	    // Not enough data
+        if (acfLength < maxlag) {
+            // Not enough data
             delete[] acf;
             delete[] temp;
-	    return 0.0;
-	}
+            return 0.0;
+        }
 
         ACFCombFilter filter(m_beatsPerBar, minlag, maxlag, hopsPerSec);
         int cflen = filter.getFilteredLength();
-	double *cf = new double[cflen];
+        double *cf = new double[cflen];
         filter.filter(acf, acfLength, cf);
         unityNormalise(cf, cflen);
 
-	for (int i = 0; i < cflen; ++i) {
-	    // perceptual weighting: prefer middling values
-	    double bpm = Autocorrelation::lagToBpm(minlag + i, hopsPerSec);
+        for (int i = 0; i < cflen; ++i) {
+            // perceptual weighting: prefer middling values
+            double bpm = Autocorrelation::lagToBpm(minlag + i, hopsPerSec);
             double weight;
             double centre = 130.0;
             if (bpm < centre) {
@@ -545,16 +545,16 @@ public:
             } else {
                 weight = 1.0 - pow(fabs(centre - bpm) / 80.0, 2.4);
             }                
-	    if (weight < 0.0) weight = 0.0;
-	    cf[i] *= weight;
-	}
+            if (weight < 0.0) weight = 0.0;
+            cf[i] *= weight;
+        }
 
         std::multimap<double, int> candidateMap;
-	for (int i = 1; i + 1 < cflen; ++i) {
+        for (int i = 1; i + 1 < cflen; ++i) {
             if (cf[i] > cf[i-1] && cf[i] > cf[i+1]) {
                 candidateMap.insert(std::pair<double, int>(cf[i], i));
             }
-	}
+        }
 
         if (candidateMap.empty()) {
             delete[] cf;
@@ -571,13 +571,13 @@ public:
             m_candidates.push_back(bpm);
         }
 
-	delete[] cf;
-	delete[] acf;
-	delete[] temp;
+        delete[] cf;
+        delete[] acf;
+        delete[] temp;
 
-	return m_candidates[0];
+        return m_candidates[0];
     }
-	
+        
 
 private:
     float m_inputSampleRate;
