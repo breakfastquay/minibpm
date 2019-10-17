@@ -128,6 +128,9 @@ public:
 private:
     class D;
     D *m_d;
+
+    MiniBPM(const MiniBPM &); // not provided
+    MiniBPM &operator=(const MiniBPM &); // not provided
 };
 
 /**
