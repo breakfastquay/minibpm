@@ -33,8 +33,8 @@ Building MiniBPM
 ================
 
 Just add MiniBpm.h and MiniBpm.cpp (found in the src/ directory here)
-to your code project.  MiniBPM uses some classes from the C++ standard
-library, but has no other dependencies.
+to your code project. The code is C++98 standard. MiniBPM uses some
+classes from the C++ standard library, but has no other dependencies.
 
 A suite of unit tests is provided using the Boost test
 framework. (Note that these test the implementation of the method --
