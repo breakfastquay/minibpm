@@ -11,6 +11,9 @@ TEST_LDFLAGS	:= $(LDFLAGS) -lboost_unit_test_framework
 all: $(TEST_TARGET)
 	./$(TEST_TARGET)
 
+clean:
+	rm -f $(TEST_TARGET)
+
 $(TEST_TARGET): $(TEST_SOURCES) $(MINIBPM_SOURCES) $(MINIBPM_HEADERS)
 	$(CXX) $(CXXFLAGS) -o $@ $(TEST_SOURCES) $(TEST_LDFLAGS)
 
