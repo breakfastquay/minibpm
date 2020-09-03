@@ -1,18 +1,18 @@
 
-MiniBPM
-=======
+# MiniBPM
 
 A simple beats-per-minute estimator for fixed-tempo music audio,
 implemented in C++ with few external dependencies.
 
 Written by Chris Cannam, chris.cannam@breakfastquay.com.
-Copyright 2012-2014 Particular Programs Ltd.
+Published by Particular Programs Ltd t/a Breakfast Quay.
+Copyright 2007-2020 Particular Programs Ltd.
 
-See http://breakfastquay.com/minibpm/ for more information.
+* About MiniBPM: https://breakfastquay.com/minibpm/
+* Code repository: https://hg.sr.ht/~breakfastquay/minibpm
 
 
-Licence
-=======
+## Licence
 
 MiniBPM is distributed under the GNU General Public License. See the
 file COPYING for more information.
@@ -29,15 +29,15 @@ redistribute and/or modify MiniBPM under the terms described in that
 licence. Please refer to your licence agreement for more details.
 
 
-Building MiniBPM
-================
+## Building MiniBPM
 
-Just add MiniBpm.h and MiniBpm.cpp (found in the src/ directory here)
-to your code project. The code is C++98 standard. MiniBPM uses some
-classes from the C++ standard library, but has no other dependencies.
+Just add `MiniBpm.h` and `MiniBpm.cpp` (found in the `src/` directory
+here) to your code project. The code is C++98 standard. MiniBPM uses
+some classes from the C++ standard library, but has no other
+dependencies.
 
 A suite of unit tests is provided using the Boost test
 framework. (Note that these test the implementation of the method --
 they do not give you any indication of how good the method itself is.)
-To run them, run "make" or equivalent in the tests/ directory.
+To run them, run `make` or equivalent in the `tests/` directory.
 
