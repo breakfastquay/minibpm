@@ -304,8 +304,7 @@ BOOST_AUTO_TEST_CASE(refineAdjusting)
 {
     double acf[] = { 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0 };
     double bpm = REFINER(1).refine(1, acf, 8);
-    BOOST_CHECK_LT(bpm, 60);
-    BOOST_CHECK_GT(bpm, 50);
+    BOOST_CHECK_EQUAL(bpm, 48);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

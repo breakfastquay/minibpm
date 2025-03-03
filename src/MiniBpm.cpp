@@ -225,6 +225,7 @@ public:
             // 0  1  2  4  4  4  8  8  8  8  8  8 16 16 16 16 16 16 16 ...
             base = (lag * multiple) - (multiple / 4);
             count = (multiple / 4) + (multiple / 2);
+            if (base < 0) base = 0;
         }
     }
 
@@ -267,42 +268,69 @@ public:
 
     double refine(int lag, const double *acf, int acfLength) {
         
+        std::cout << "refine: given lag = " << lag << " (" << Autocorrelation::lagToBpm(lag, m_hopsPerSec) << " bpm)" << std::endl;
+        
         int multiple = 1;
         double interpolated = lag;
+        double overallPeak = 0.0;
 
-        double total = 0.0;
-        int n = 0;
+        std::cout << "peaks at: ";
 
-        while (1) {
+        while (multiple <= 16) {
+
+            if (multiple > 1) std::cout << "; ";
             
             int base, count;
             getContributingRange(lag, multiple, base, count);
-
             if (base + count > acfLength) break;
 
+            std::cout << " {from " << base << " to " << base+count-1 << "} ";
+
             double peak = 0.0;
-            int peakidx = 0;
-            for (int j = base; j < base + count; ++j) {
+            int pix = 0;
+            std::cout << "( ";
+            for (int j = base; j < acfLength; ++j) {
+                std::cout << acf[j] << " ";
                 if (acf[j] > peak) {
                     peak = acf[j];
-                    peakidx = j;
+                    pix = j;
+                } else if (j >= base + count) {
+                    break;
                 }
             }
+            std::cout << ") ";
             
-            if (peak > 0.0) {
-                double scaled = double(peakidx) / multiple;
-                total += scaled;
-                ++n;
+            if (peak > overallPeak * 0.9) {
+                std::cout << pix << " (m=" << multiple << ") ";
+                double loc = pix;
+                if (pix > 0 && pix + 1 < acfLength) {
+                    double a = acf[pix-1];
+                    double b = acf[pix];
+                    double c = acf[pix+1];
+                    if (b > a && b > c) {
+                        double d = a - 2*b + c;
+                        if (d != 0.0) {
+                            loc += ((a - c) / d) / 2.0;
+                        }
+                        std::cout << "[a=" << a << ", b=" << b << ", c=" << c << " d=" << d << ", loc=" << loc << ", bpm=" << Autocorrelation::lagToBpm(loc / multiple, m_hopsPerSec) << "] ";
+                    }
+                }
+                interpolated = loc / multiple;
+                if (peak > overallPeak) {
+                    overallPeak = peak;
+                }
             }
             
             if (multiple == 1) multiple = m_beatsPerBar;
             else multiple = multiple * 2;
         }
 
-        if (n > 0) {
-            interpolated = total / n;
-        }
-    
+        std::cout << std::endl;
+
+        std::cout << "refine: interpolated lag = " << interpolated << " (" << Autocorrelation::lagToBpm(interpolated, m_hopsPerSec) << " bpm)" << std::endl;
+
+        std::cout << "(hops per sec = " << m_hopsPerSec << ")" << std::endl;
+        
         double bpm = Autocorrelation::lagToBpm(interpolated, m_hopsPerSec);
         return bpm;
     }
@@ -361,6 +389,7 @@ public:
     {
         int lfbinmax = 6;
         m_blockSize = (m_inputSampleRate * lfbinmax) / m_lfmax;
+        std::cout << "blockSize = " << m_blockSize << std::endl;
         m_stepSize = m_blockSize / 2;
 
         m_lf = new FourierFilterbank(m_blockSize, m_inputSampleRate, 
@@ -381,7 +410,7 @@ public:
         m_input = new double[m_blockSize];
         m_partial = new double[m_stepSize];
 
-    int frameSize = std::max(lfsize, hfsize);
+        int frameSize = std::max(lfsize, hfsize);
         m_frame = new double[frameSize];
 
         zero(m_input, m_blockSize);
@@ -529,11 +558,28 @@ public:
             return 0.0;
         }
 
+        std::cout << "acfLength = " << acfLength << std::endl;
+
+        std::cout << "acf = ";
+        for (int i = 0; i < acfLength; ++i) {
+            if (i > 0) std::cout << ", ";
+            std::cout << acf[i];
+        }
+
+        std::cout << std::endl;
+        
         ACFCombFilter filter(m_beatsPerBar, minlag, maxlag, hopsPerSec);
         int cflen = filter.getFilteredLength();
         double *cf = new double[cflen];
         filter.filter(acf, acfLength, cf);
         unityNormalise(cf, cflen);
+
+        std::cout << "cf = ";
+        for (int i = 0; i < cflen; ++i) {
+            if (i > 0) std::cout << ", ";
+            std::cout << cf[i];
+        }
+        std::cout << std::endl;
 
         for (int i = 0; i < cflen; ++i) {
             // perceptual weighting: prefer middling values
@@ -548,6 +594,13 @@ public:
             if (weight < 0.0) weight = 0.0;
             cf[i] *= weight;
         }
+
+        std::cout << "weighted cf = ";
+        for (int i = 0; i < cflen; ++i) {
+            if (i > 0) std::cout << ", ";
+            std::cout << cf[i];
+        }
+        std::cout << std::endl;
 
         std::multimap<double, int> candidateMap;
         for (int i = 1; i + 1 < cflen; ++i) {
