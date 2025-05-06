@@ -63,6 +63,7 @@
 
 #include <vector>
 #include <map>
+#include <set>
 #include <utility>
 #include <cmath>
 #include <algorithm>
@@ -572,12 +573,18 @@ public:
             return 0.0;
         }
 
+        std::set<int> grossCandidatesSeen;
+        
         std::multimap<double, int>::const_iterator ci(candidateMap.end());
         while (ci != candidateMap.begin()) {
             --ci;
             int lag = ci->second + minlag;
             double bpm = filter.refine(lag, acf, acfLength);
-            m_candidates.push_back(bpm);
+            int gross = int(round(bpm * 2.0)); // treat within 0.5 as duplicate
+            if (grossCandidatesSeen.find(gross) == grossCandidatesSeen.end()) {
+                m_candidates.push_back(bpm);
+                grossCandidatesSeen.insert(gross);
+            }
         }
 
         delete[] cf;
