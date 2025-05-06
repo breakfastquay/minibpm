@@ -72,6 +72,7 @@ public:
 
 protected:
     breakfastquay::MiniBPM *m_mbpm;
+    Vamp::RealTime m_lastTimestamp;
     size_t m_blockSize;
     int m_beatsPerBar;
 };

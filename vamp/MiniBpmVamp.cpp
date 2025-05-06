@@ -71,7 +71,7 @@ MiniBpmVamp::getPluginVersion() const
 {
     // Increment this each time you release a version that behaves
     // differently from the previous one
-    return 1;
+    return 2;
 }
 
 string
@@ -189,6 +189,18 @@ MiniBpmVamp::getOutputDescriptors() const
     d.hasDuration = true;
     outputs.push_back(d);
 
+    d = OutputDescriptor();
+    d.identifier = "candidates";
+    d.name = "Tempo Candidates";
+    d.description = "A multi-valued feature containing all tempo candidates starting with the most likely";
+    d.hasFixedBinCount = false;
+    d.hasKnownExtents = false;
+    d.isQuantized = false;
+    d.sampleType = OutputDescriptor::FixedSampleRate;
+    d.sampleRate = m_inputSampleRate;
+    d.hasDuration = true;
+    outputs.push_back(d);
+
     return outputs;
 }
 
@@ -210,12 +222,14 @@ MiniBpmVamp::reset()
 {
     m_mbpm->reset();
     m_mbpm->setBeatsPerBar(m_beatsPerBar);
+    m_lastTimestamp = Vamp::RealTime::zeroTime;
 }
 
 MiniBpmVamp::FeatureSet
 MiniBpmVamp::process(const float *const *inputBuffers, Vamp::RealTime timestamp)
 {
     m_mbpm->process(inputBuffers[0], m_blockSize);
+    m_lastTimestamp = timestamp;
     return FeatureSet();
 }
 
@@ -230,10 +244,24 @@ MiniBpmVamp::getRemainingFeatures()
     f.hasTimestamp = true;
     f.timestamp = Vamp::RealTime::zeroTime;
     f.hasDuration = true;
-    f.duration = Vamp::RealTime::fromSeconds(1.0);
+    f.duration = m_lastTimestamp +
+        Vamp::RealTime::frame2RealTime(m_blockSize, m_inputSampleRate);
     f.values.push_back(bpm);
     fs[0].push_back(f);
 
+    std::vector<double> candidates = m_mbpm->getTempoCandidates();
+
+    f = Feature();
+    f.hasTimestamp = true;
+    f.timestamp = Vamp::RealTime::zeroTime;
+    f.hasDuration = true;
+    f.duration = m_lastTimestamp +
+        Vamp::RealTime::frame2RealTime(m_blockSize, m_inputSampleRate);
+    for (size_t i = 0; i < candidates.size(); ++i) {
+        f.values.push_back(candidates[i]);
+    }
+    fs[1].push_back(f);
+    
     return fs;
 }
 
