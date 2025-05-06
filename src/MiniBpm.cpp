@@ -3,7 +3,7 @@
 /*
     MiniBPM
     A fixed-tempo BPM estimator for music audio
-    Copyright 2012-2021 Particular Programs Ltd.
+    Copyright 2012-2025 Particular Programs Ltd.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -63,6 +63,7 @@
 
 #include <vector>
 #include <map>
+#include <set>
 #include <utility>
 #include <cmath>
 #include <algorithm>
@@ -225,6 +226,7 @@ public:
             // 0  1  2  4  4  4  8  8  8  8  8  8 16 16 16 16 16 16 16 ...
             base = (lag * multiple) - (multiple / 4);
             count = (multiple / 4) + (multiple / 2);
+            if (base < 0) base = 0;
         }
     }
 
@@ -269,40 +271,48 @@ public:
         
         int multiple = 1;
         double interpolated = lag;
+        double overallPeak = 0.0;
 
-        double total = 0.0;
-        int n = 0;
+        while (multiple <= 16) {
 
-        while (1) {
-            
             int base, count;
             getContributingRange(lag, multiple, base, count);
-
             if (base + count > acfLength) break;
 
             double peak = 0.0;
-            int peakidx = 0;
-            for (int j = base; j < base + count; ++j) {
+            int pix = 0;
+            for (int j = base; j < acfLength; ++j) {
                 if (acf[j] > peak) {
                     peak = acf[j];
-                    peakidx = j;
+                    pix = j;
+                } else if (j >= base + count) {
+                    break;
                 }
             }
             
-            if (peak > 0.0) {
-                double scaled = double(peakidx) / multiple;
-                total += scaled;
-                ++n;
+            if (peak > overallPeak * 0.9) {
+                double loc = pix;
+                if (pix > 0 && pix + 1 < acfLength) {
+                    double a = acf[pix-1];
+                    double b = acf[pix];
+                    double c = acf[pix+1];
+                    if (b > a && b > c) {
+                        double d = a - 2*b + c;
+                        if (d != 0.0) {
+                            loc += ((a - c) / d) / 2.0;
+                        }
+                    }
+                }
+                interpolated = loc / multiple;
+                if (peak > overallPeak) {
+                    overallPeak = peak;
+                }
             }
             
             if (multiple == 1) multiple = m_beatsPerBar;
             else multiple = multiple * 2;
         }
 
-        if (n > 0) {
-            interpolated = total / n;
-        }
-    
         double bpm = Autocorrelation::lagToBpm(interpolated, m_hopsPerSec);
         return bpm;
     }
@@ -381,7 +391,7 @@ public:
         m_input = new double[m_blockSize];
         m_partial = new double[m_stepSize];
 
-    int frameSize = std::max(lfsize, hfsize);
+        int frameSize = std::max(lfsize, hfsize);
         m_frame = new double[frameSize];
 
         zero(m_input, m_blockSize);
@@ -563,12 +573,18 @@ public:
             return 0.0;
         }
 
+        std::set<int> grossCandidatesSeen;
+        
         std::multimap<double, int>::const_iterator ci(candidateMap.end());
         while (ci != candidateMap.begin()) {
             --ci;
             int lag = ci->second + minlag;
             double bpm = filter.refine(lag, acf, acfLength);
-            m_candidates.push_back(bpm);
+            int gross = int(round(bpm * 2.0)); // treat within 0.5 as duplicate
+            if (grossCandidatesSeen.find(gross) == grossCandidatesSeen.end()) {
+                m_candidates.push_back(bpm);
+                grossCandidatesSeen.insert(gross);
+            }
         }
 
         delete[] cf;

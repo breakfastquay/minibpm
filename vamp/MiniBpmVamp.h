@@ -3,7 +3,7 @@
 /*
     MiniBPM
     A fixed-tempo BPM estimator for music audio
-    Copyright 2012-2021 Particular Programs Ltd.
+    Copyright 2012-2025 Particular Programs Ltd.
 
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -72,6 +72,7 @@ public:
 
 protected:
     breakfastquay::MiniBPM *m_mbpm;
+    Vamp::RealTime m_lastTimestamp;
     size_t m_blockSize;
     int m_beatsPerBar;
 };
